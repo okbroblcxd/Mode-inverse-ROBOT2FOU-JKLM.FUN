@@ -11,6 +11,6 @@ avec le bot ROBOT2FOU sur JKLM.FUN BombParty.
 4. Recharger jklm.fun.
 
 ## Utilisation
-- Dans une room du bot, un modérateur tape `.mode reverse`.
+- Dans une room du bot, un modérateur (ou toi si c'est ta room) tape `.mode reverse`.
 - Le script affiche un **code à 4 chiffres** (en bas à gauche).
 - Tape ce code dans le chat pour activer.
