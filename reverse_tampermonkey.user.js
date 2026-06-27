@@ -10,6 +10,35 @@
 // @grant        none
 // ==/UserScript==
 
+/* =========================================================================
+ *  COMMENT LE BOT ET LE SCRIPT COMMUNIQUENT (Explication simple)
+ * =========================================================================
+ * Ce script permet à votre navigateur de dialoguer en toute sécurité avec
+ * le bot ROBOT2FOU sur JKLM.FUN sans que les joueurs n'aient besoin de
+ * connaissances techniques. Voici comment ils interagissent en coulisses :
+ *
+ * 1. L'Appel du bot :
+ *    Quand un modérateur tape `.mode reverse`, le bot envoie dans le chat un
+ *    message technique invisible pour les profanes (ex: `REVERSE_CHALLENGE`).
+ *
+ * 2. La Détection par le script :
+ *    Le script surveille en permanence le chat. Dès qu'il voit l'appel du bot,
+ *    il utilise une formule mathématique secrète (partagée avec le bot) pour
+ *    générer un code à 4 chiffres. Il affiche alors ce code sur votre écran
+ *    dans un petit encadré (l'overlay).
+ *
+ * 3. L'Activation par le joueur :
+ *    En recopiant et en envoyant ce code à 4 chiffres dans le chat, le bot
+ *    valide instantanément que vous possédez le script. Il officialise
+ *    l'inversion en envoyant le signal `REVERSE_ACTIVE`.
+ *
+ * 4. La Vérification automatique des autres joueurs :
+ *    Dès que la room passe en Reverse, le script de chaque joueur présent
+ *    répond automatiquement en arrière-plan au bot par un code de présence
+ *    (`REVERSE_READY`). Le bot sait ainsi précisément qui a installé le script
+ *    et expulsera automatiquement les joueurs non équipés avant la partie.
+ * ========================================================================= */
+
 (function () {
     'use strict';
 
@@ -37,10 +66,7 @@
     }
 
     let reverseActive = false;
-    let selfPeerId = null; // notre peerId dans la partie (lu sur le WebSocket)
-    // Le chat (lecture des défis, overlay, envoi de READY) n'est géré que par la
-    // frame du HAUT, pour éviter les doublons quand le script tourne aussi dans
-    // l'iframe du jeu. L'inversion WebSocket, elle, s'applique dans toutes les frames.
+    let selfPeerId = null;
     const IS_TOP = (function () { try { return window.top === window.self; } catch (_) { return true; } })();
 
     (function patchWebSocket() {
@@ -49,7 +75,6 @@
 
         function maybeReverseFrame(data) {
             if (typeof data !== 'string') return data;
-
             const m = data.match(/^(42[^\[]*)(\[.*\])$/s);
             if (!m) return data;
             let arr;
@@ -60,7 +85,6 @@
             return m[1] + JSON.stringify(arr);
         }
 
-        // Capture notre selfPeerId dans les trames entrantes "setup".
         function captureSelfPeerId(data) {
             if (typeof data !== 'string' || selfPeerId !== null) return;
             if (data.indexOf('selfPeerId') === -1) return;
@@ -71,8 +95,6 @@
             if (Array.isArray(arr) && arr[0] === 'setup' && arr[1] && arr[1].selfPeerId != null) {
                 selfPeerId = Number(arr[1].selfPeerId);
                 try { console.log('[ROBOT2FOU Reverse] selfPeerId =', selfPeerId); } catch (_) {}
-                // Le peerId vient du socket du JEU (souvent dans l'iframe), mais la
-                // preuve READY part du chat (frame du haut) : on le partage.
                 try { if (window.top && window.top !== window) window.top.postMessage({ __r2fPeer: true, peerId: selfPeerId }, '*'); } catch (_) {}
             }
         }
@@ -84,7 +106,6 @@
             return NativeSend.call(this, data);
         };
 
-        // On écoute les messages entrants de CHAQUE WebSocket créé.
         const NativeAddEL = window.WebSocket.prototype.addEventListener;
         function hookIncoming(ws) {
             try {
@@ -127,17 +148,14 @@
         if (!d || typeof d !== 'object') return;
         if (d.__r2fReverse) {
             applyState(d.active);
-
             try {
                 document.querySelectorAll('iframe').forEach(f => {
                     try { if (f.contentWindow && f.contentWindow !== ev.source) f.contentWindow.postMessage(d, '*'); } catch (_) {}
                 });
             } catch (_) {}
         } else if (d.__r2fAsk) {
-
             try { ev.source && ev.source.postMessage({ __r2fReverse: true, active: reverseActive }, '*'); } catch (_) {}
         } else if (d.__r2fPeer && d.peerId != null) {
-            // Une autre frame (le jeu) nous communique notre peerId.
             if (selfPeerId === null) selfPeerId = Number(d.peerId);
         }
     });
@@ -149,8 +167,8 @@
     function setNativeValue(el, value) {
         const proto = Object.getPrototypeOf(el);
         const desc = Object.getOwnPropertyDescriptor(proto, 'value') ||
-                     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value') ||
-                     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value') ||
+            Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
         if (desc && desc.set) desc.set.call(el, value);
         else el.value = value;
         el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -198,10 +216,13 @@
     function showOverlay(code) {
         const o = ensureOverlay();
         o.innerHTML =
-            `<div style="font-weight:700;color:#a29bfe">🔄 Mode Reverse</div>` +
-            `<div style="margin:6px 0">Code à confirmer :</div>` +
-            `<div style="font-size:26px;font-weight:800;letter-spacing:3px;color:#00d2a8">${code}</div>` +
-            `<div style="margin-top:6px;opacity:.8">Tape simplement ce code<br>dans le chat pour activer.</div>`;
+            `<div style="font-weight:bold;margin-bottom:6px;color:#a29bfe;display:flex;align-items:center;gap:6px;">` +
+            `🔄 Mode Reverse</div>` +
+            `<div style="font-size:13px;color:#dfe6e9;margin-bottom:8px;">Code à confirmer : ` +
+            `<span style="background:#6c5ce7;color:#fff;padding:2px 6px;border-radius:4px;font-weight:bold;font-family:monospace;font-size:15px;">` +
+            `${code}</span></div>` +
+            `<div style="font-size:11px;color:#b2bec3;line-height:1.2;">Tape simplement ce code ` +
+            `dans le chat pour activer.</div>`;
         o.style.display = 'block';
         clearTimeout(o._hideT);
         o._hideT = setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 60000);
@@ -209,16 +230,11 @@
 
     function hideOverlay() { if (overlay) overlay.style.display = 'none'; }
 
-    // Envoie la preuve REVERSE_READY UNE seule fois par nonce. Le code dépend de
-    // NOTRE peerId (unique par joueur) : impossible à copier sur un autre.
-    // Si le peerId n'est pas encore connu, on réessaie brièvement.
     let readySentForNonce = null;
-    let iAmActivator = false; // ce navigateur a tapé le code -> déjà confirmé par le bot
+    let iAmActivator = false;
     function sendReadyOnce(nonce, attempt) {
         attempt = attempt || 0;
         if (!nonce || readySentForNonce === nonce) return;
-        // L'activateur (celui qui a tapé le code) est déjà confirmé par le bot :
-        // inutile de polluer le chat avec un REVERSE_READY redondant.
         if (iAmActivator) { readySentForNonce = nonce; return; }
         if (selfPeerId === null) {
             if (attempt < 25) setTimeout(() => sendReadyOnce(nonce, attempt + 1), 400);
@@ -279,11 +295,6 @@
         obs.observe(document.body, { childList: true, subtree: true, characterData: true });
     }
 
-    // L'inversion ne s'active QUE lorsque le joueur tape lui-même le code à 4
-    // chiffres affiché dans l'overlay (exigence : pas d'activation automatique).
-    // On surveille le champ de chat : si l'utilisateur envoie le code attendu,
-    // on active l'inversion immédiatement de son côté (le bot confirme en
-    // parallèle via REVERSE_ACTIVE).
     function watchSelfCodeEntry() {
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Enter' || !pendingCode) return;
@@ -291,7 +302,7 @@
             if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
             const v = String(el.value || '').trim();
             if (v === pendingCode) {
-                iAmActivator = true; // on a tapé le code -> le bot nous confirme déjà
+                iAmActivator = true;
                 broadcastState(true);
                 pendingCode = null;
                 hideOverlay();
@@ -300,12 +311,10 @@
     }
 
     function onReady() {
-        // Seule la frame du haut gère le chat/overlay (évite les doublons READY).
         if (IS_TOP) {
             startChatObserver();
             watchSelfCodeEntry();
         } else {
-            // L'iframe du jeu demande l'état courant au parent au démarrage.
             askParentState();
         }
     }
