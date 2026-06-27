@@ -14,3 +14,20 @@ avec le bot ROBOT2FOU sur JKLM.FUN BombParty.
 - Dans une room du bot, un modérateur (ou toi si c'est ta room) tape `.mode reverse`.
 - Le script affiche un **code à 4 chiffres** (en bas à gauche).
 - Tape ce code dans le chat pour activer.
+
+
+## ℹ️ Comment le bot et le script communiquent (Explication simple)
+
+Ce script permet à votre navigateur de dialoguer en toute sécurité avec le bot **ROBOT2FOU** sur [JKLM.FUN](https://jklm.fun) sans que les joueurs n'aient besoin de connaissances techniques. Voici comment ils interagissent en coulisses :
+
+### 1. 📢 L'Appel du bot
+Quand un modérateur tape `.mode reverse`, le bot envoie dans le chat un message technique invisible pour les profanes (ex : `REVERSE_CHALLENGE`).
+
+### 2. 👁️ La Détection par le script
+Le script surveille en permanence le chat. Dès qu'il voit l'appel du bot, il utilise une formule mathématique secrète (partagée avec le bot) pour générer un code à 4 chiffres. Il affiche alors ce code sur votre écran dans un petit encadré (l'overlay).
+
+### 3. 🔑 L'Activation par le joueur
+En recopiant et en envoyant ce code à 4 chiffres dans le chat, le bot valide instantanément que vous possédez le script. Il officialise l'inversion en envoyant le signal `REVERSE_ACTIVE`.
+
+### 4. 🛡️ La Vérification automatique des autres joueurs
+Dès que la room passe en Reverse, le script de chaque joueur présent répond automatiquement en arrière-plan au bot par un code de présence (`REVERSE_READY`). Le bot sait ainsi précisément qui a installé le script et expulsera automatiquement les joueurs non équipés avant la partie.
